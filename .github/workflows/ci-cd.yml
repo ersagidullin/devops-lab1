@@ -25,6 +25,12 @@ jobs:
           pip install bandit
           bandit -r . --severity-level high --confidence-level high \
           -f json -o bandit_results.json || true
+
+      - name: Upload Bandit Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: bandit_results
+          path: bandit_results.json
       - name: Check Bandit Results
         id: bandit-check
         run: |
