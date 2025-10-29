@@ -1,46 +1,54 @@
 name: CI/CD Pipeline with SAST
+# сценарии
 on:
   push:
     branches: [main, master]
   pull_request:
     branches: [main, master]
+
 jobs:
+# джоба с проверкой
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
     steps:
+      # клонирование репозитория
       - name: Checkout code
         uses: actions/checkout@v4
-
+      # установка интерпретатора
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
+      # установка зависимостей
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest flake8
-
+      # проверка стиля (только количество)
       - name: Run flake8 (PEP8 style check)
         run: |
           echo "Running flake8 style check..."
           flake8 . --count --max-line-length=120 --statistics || true
-
+      # проверка уязвимостей
       - name: Run Bandit SAST Scan
         run: |
           pip install bandit
           bandit -r . --severity-level high --confidence-level high \
           -f json -o bandit_results.json || true
-
+      # загрузка артефакта 
       - name: Upload Bandit Results
         uses: actions/upload-artifact@v4
         with:
           name: bandit_results
           path: bandit_results.json
+      # проверка результатов
       - name: Check Bandit Results
         id: bandit-check
+        
+        # файл есть
+        # json парсер 
         run: |
           if [ -f bandit_results.json ]; then
           if jq -e '.results[] | select(.issue_confidence == "HIGH" and .issue_severity
@@ -53,18 +61,22 @@ jobs:
           else
           echo "Bandit report not found. Assuming no issues."
           fi
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: "fs"
-          scan-ref: "."
+          scan-type: "fs" # файловая система
+          scan-ref: "." # директория
           format: "table"
-          exit-code: "1"
-          ignore-unfixed: true
-          severity: "HIGH,CRITICAL"
+          exit-code: "1" # ошибка
+          ignore-unfixed: true # исправимые
+          severity: "HIGH,CRITICAL" 
+
+      # тесты (подробные)
       - name: Run Tests with pytest
         run: |
           python -m pytest tests/ -v
+# джоба с запуском
   run-app:
       name: Run Application
       runs-on: ubuntu-latest
